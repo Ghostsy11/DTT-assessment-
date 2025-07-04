@@ -65,7 +65,6 @@ public class PrimsHelperMethods : MonoBehaviour
     /// </summary>
     public bool IsInBounds(Vector2Int loc)
     {
-        //return loc.x > 0 && loc.x < width - 1 && loc.y > 0 && loc.y < height - 1;
         return loc.x >= 0 && loc.x < width && loc.y >= 0 && loc.y < height;
 
     }

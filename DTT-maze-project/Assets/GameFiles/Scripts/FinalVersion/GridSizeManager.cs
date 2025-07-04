@@ -18,11 +18,11 @@ public class GridSizeManager : MonoBehaviour
     private PrimsFirstApproach firstApproach;
     private PrimsSecondApproach secondApproach;
 
-    // Internal data for the job
-    private TransformAccessArray _transforms;
-    private NativeArray<int> _xs;             // X from Vector2Int
-    private NativeArray<float> _zs;           // Z from Vector2Int
-    private bool initialized;
+    // Native job data
+    private TransformAccessArray _transforms;         // Efficient access to transforms for parallel resizing
+    private NativeArray<int> _xs;                     // Stores X positions (from Vector2Int)
+    private NativeArray<float> _zs;                   // Stores Z positions (Y in Vector2Int is used as Z)
+    private bool initialized;                         // Track if transform data has been built
 
 
     private void Awake()
@@ -33,22 +33,14 @@ public class GridSizeManager : MonoBehaviour
         primsHelper = GetComponent<PrimsHelperMethods>();
     }
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            ApplyResize();
-            //secondApproach.PullDownPath(1);
-        }
-    }
-
     /// <summary>
-    /// Call this to resize/reposition all maze cubes to the current cubeSize & spacing.
+    /// Resize and reposition all maze cubes using the current cubeSize & spacing.
+    /// Runs a parallel job for performance.
     /// </summary>
     public void ApplyResize()
     {
         if (!initialized)
-            InitializeTransforms();
+            InitializeTransforms(); // Setup NativeArrays and TransformAccessArray
 
         var job = new ResizeJob
         {
@@ -59,9 +51,9 @@ public class GridSizeManager : MonoBehaviour
         };
 
         JobHandle handle = job.Schedule(_transforms);
-        handle.Complete();
+        handle.Complete(); // Wait until job is finished
 
-        //  Safely animate based on which approach is active
+        // Trigger cube animation (like dropping down) for whichever approach is active
         if (firstApproach != null && firstApproach.map != null)
         {
             primsHelper.PullDownPath(1, generator.cellsByLocation, firstApproach.map);
@@ -71,11 +63,10 @@ public class GridSizeManager : MonoBehaviour
         {
             primsHelper.PullDownPath(1, generator.cellsByLocation, secondApproach.grid);
         }
-
     }
 
     /// <summary>
-    /// Builds the TransformAccessArray and X/Z arrays from the generator's dictionary.
+    /// Initializes transform data required for resizing job (runs once).
     /// </summary>
     private void InitializeTransforms()
     {
@@ -89,8 +80,8 @@ public class GridSizeManager : MonoBehaviour
         foreach (var kvp in generator.cellsByLocation)
         {
             transforms[i] = kvp.Value.transform;
-            _xs[i] = kvp.Key.x;    // X component of Vector2Int
-            _zs[i] = kvp.Key.y;    // Y component is used as Z
+            _xs[i] = kvp.Key.x;      // Store X from Vector2Int
+            _zs[i] = kvp.Key.y;      // Store Z from Vector2Int.y
             i++;
         }
 
@@ -98,6 +89,9 @@ public class GridSizeManager : MonoBehaviour
         initialized = true;
     }
 
+    /// <summary>
+    /// Safely clean up job-related memory to avoid leaks.
+    /// </summary>
     private void OnDestroy()
     {
         if (initialized)
@@ -108,24 +102,28 @@ public class GridSizeManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Struct that defines the job logic to resize and reposition each transform in parallel.
+    /// </summary>
     [BurstCompile]
     private struct ResizeJob : IJobParallelForTransform
     {
-        public float cubeSize;
-        public float spacing;
+        public float cubeSize;   // Target size
+        public float spacing;    // Target spacing
 
-        [ReadOnly] public NativeArray<int> xs;
-        [ReadOnly] public NativeArray<float> zs;
+        [ReadOnly] public NativeArray<int> xs; // X positions
+        [ReadOnly] public NativeArray<float> zs; // Z positions
 
         public void Execute(int index, TransformAccess transform)
         {
-            // Uniform scale
+            // Scale the cube uniformly
             transform.localScale = Vector3.one * cubeSize;
 
-            // Calculate position with spacing
+            // Compute new world position with spacing applied
             float offset = cubeSize + spacing;
             float xPos = xs[index] * offset;
             float zPos = zs[index] * offset;
+
             transform.position = new Vector3(xPos, 0f, zPos);
         }
     }

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -27,7 +26,7 @@ public class PrimsSecondApproach : MonoBehaviour
 
     [Header("Maze Step Settings")]
     [Tooltip("How far apart cells are connected")]
-    [SerializeField][Range(2, 8)] private int stepSize = 2;
+    [SerializeField][Range(2, 8)] int stepSize = 2;
 
     private void Awake()
     {
@@ -37,11 +36,6 @@ public class PrimsSecondApproach : MonoBehaviour
         renderer = GetComponent<MazeDictMeshRenderer>();
     }
 
-    private void Start()
-    {
-        StartCoroutine(OrderOfExecution());
-
-    }
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.G))
@@ -53,67 +47,71 @@ public class PrimsSecondApproach : MonoBehaviour
     /// <summary>
     /// Runs each phase in sequence, waiting for async operations to complete.
     /// </summary>
-    private IEnumerator OrderOfExecution()
+    public IEnumerator GenerateOrder()
     {
-        // 1. Generate the base grid (instantiated or batched)
+        // Step 1: Generate the base grid using the MazeGenerator
         mazeGenerator.Generate();
 
-        // Wait until the appropriate generation flag is set
+        // Step 2: Wait until the maze generation is complete, depending on the generation type
         switch (mazeGenerator.generateType)
         {
             case MazeGenerator.GenerateType.GenerateOnce:
                 while (!mazeGenerator.generateMazeAtOnceIsDone)
                     yield return null;
                 break;
+
             case MazeGenerator.GenerateType.GenerateBatched:
                 while (!mazeGenerator.GenerateMazeBatchedIsDone)
                     yield return null;
                 break;
+
             case MazeGenerator.GenerateType.PreInstantiated:
                 while (!mazeGenerator.GetPreInstantiatedMazeIsDone)
                     yield return null;
                 break;
         }
-        // 2. Give the pool manager the generated map
+
+        // Step 3: Pass the generated cube references to the pool manager
         poolManager.cellsByLocation = mazeGenerator.cellsByLocation;
 
-        // 3. Enable/activate all pooled cubes
+        // Step 4: Enable all cubes in the pool
         poolManager.EnableAllCubes();
 
-        // 4. Render cubes gradually (likely a coroutine)
-        renderer.RenderCubesGradually();
-
-        // 5. Wait one frame (or subscribe to renderer.OnRenderFinished if you want to be precise)
+        // Step 5: Wait one frame to ensure they are fully activated before rendering
         yield return null;
 
-        // 6. Initialize your byte[,] grid to all “1”s
+        // Step 6: Start rendering cubes gradually and wait until rendering is complete
+        yield return StartCoroutine(renderer.RenderCubesGraduallyOnHold());
+
+        // Step 7: Initialize the internal byte[,] grid as fully walled
         grid = helper.InitializeMapArray(mazeGenerator.xWidth, mazeGenerator.zLength);
 
-        // 7. Dump it to the console so you can verify every cell is a wall
+        // Step 8: Debug print to confirm full wall setup
         helper.DebugPrintMap(grid);
 
-        // 8. initialize the PrimsHelperMethods
-        helper.Initialize(mazeGenerator.cellsByLocation, mazeGenerator.xWidth, mazeGenerator.zLength, stepSize);
+        // Step 9: Initialize Prim’s logic (set visited, frontier, etc.)
+        helper.Initialize(
+            mazeGenerator.cellsByLocation,
+            mazeGenerator.xWidth,
+            mazeGenerator.zLength,
+            stepSize
+        );
 
-        // 5. Automatically carve until no valid frontier remains
+        // Step 10: Begin carving using Prim’s algorithm step-by-step
         while (true)
         {
-            // carve one step
             StepPrim();
 
-            // once your frontier is empty, StepPrim() will log “Maze truly complete!”,
-            // so we break out here
             if (primsInitialized && frontier != null && frontier.Count == 0)
                 break;
 
-            // wait a frame so we can visually watch it happen
             yield return null;
         }
+
         Debug.Log("Automatic Prim’s run complete!");
         helper.DebugPrintMap(grid);
 
-        // Need to be called after after resize as well
-        // animate every magenta cell down by 1 unit over 1 second
+        // Step 11: Animate carved path cubes down over 1 second
         if (mazeGenerator == null)
         {
             Debug.LogError("mazeGenerator is still null before PullDownPath!");
@@ -122,12 +120,9 @@ public class PrimsSecondApproach : MonoBehaviour
         {
             helper.PullDownPath(1f, mazeGenerator.cellsByLocation, grid);
         }
-
-        yield break;
-
     }
     #region Algorthm Logics Circle
-    private IEnumerator ReRunTheMaze()
+    public IEnumerator ReRunTheMaze()
     {
 
         // 1) Snap every cube to Y=0 and reset its color to black (wall)
@@ -226,7 +221,7 @@ public class PrimsSecondApproach : MonoBehaviour
         var nbrs = helper.GetNeighbors(cell)
                          .Where(n => visited.Contains(n))
                          .ToList();
-        Vector2Int neighbor = nbrs[UnityEngine.Random.Range(0, nbrs.Count)];
+        Vector2Int neighbor = nbrs[Random.Range(0, nbrs.Count)];
 
         // carve the entire segment between them (this sets grid=0 and colors magenta)
         helper.CarvePath(neighbor, cell, grid);

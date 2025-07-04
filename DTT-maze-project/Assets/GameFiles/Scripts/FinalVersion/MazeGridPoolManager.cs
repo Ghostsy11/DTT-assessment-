@@ -44,4 +44,25 @@ public class MazeGridPoolManager : MonoBehaviour
         foreach (var cube in cellsByLocation.Values)
             cube.SetActive(false);
     }
+
+    /// <summary>
+    /// Destroys all cubes in the maze and clears the dictionary.
+    /// Useful for hard resets or reinitialization.
+    /// </summary>
+    public void DestroyAllCubes()
+    {
+        if (cellsByLocation == null || cellsByLocation.Count == 0) return;
+
+        foreach (var cube in cellsByLocation.Values)
+        {
+            if (cube != null)
+                Destroy(cube);
+        }
+
+        cellsByLocation.Clear();
+
+        if (mazeGenerator != null)
+            mazeGenerator.cellsByLocation.Clear();
+    }
+
 }

@@ -22,16 +22,16 @@ public class PrimsFirstApproach : MonoBehaviour
     [SerializeField] int xStartingPoint = 2;
     [SerializeField] int zStartingPoint = 2;
 
-    [SerializeField][Range(0f, 1f)] private float stepDelay = 0.03f; // ⏱️ Delay per step for visualization
+    [Range(0f, 1f)] public float stepDelay = 0.03f; //  Delay per step for visualization
 
-    [SerializeField][Range(2, 6)] int stepSize = 2;
+    [Range(2, 6)] public int stepSize = 2;
 
-    private readonly Color CurrentColor = Color.red;
-    private readonly Color NeighborColor = Color.yellow;
-    private readonly Color PathColor = new Color(0.5f, 0, 0.5f); // Purple
-    private readonly Color WallColor = Color.black;
-    private HashSet<Vector2Int> visited;
-    private HashSet<Vector2Int> frontier;
+    [SerializeField] Color CurrentColor = Color.red;
+    [SerializeField] Color NeighborColor = Color.yellow;
+    [SerializeField] Color PathColor = new Color(0.5f, 0, 0.5f); // Purple
+    [SerializeField] Color WallColor = Color.black;
+    [SerializeField] HashSet<Vector2Int> visited;
+    [SerializeField] HashSet<Vector2Int> frontier;
     private void Awake()
     {
         // Get required components
@@ -41,11 +41,6 @@ public class PrimsFirstApproach : MonoBehaviour
         helper = GetComponent<PrimsHelperMethods>();
     }
 
-    private void Start()
-    {
-        StartCoroutine(GenerateAndRun());
-    }
-
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.G))
@@ -53,7 +48,12 @@ public class PrimsFirstApproach : MonoBehaviour
             StartCoroutine(ReRunRoutine());
         }
     }
-    private IEnumerator GenerateAndRun()
+
+    public void RunOnce()
+    {
+        StartCoroutine(GenerateAndRun());
+    }
+    public IEnumerator GenerateAndRun()
     {
         // Step 1: Build full grid
         mazeGenerator.Generate();
@@ -106,7 +106,7 @@ public class PrimsFirstApproach : MonoBehaviour
         while (frontier.Count > 0)
         {
             Vector2Int current = helper.GetRandomInteriorCell(frontier);
-            helper.SetCubeColor(mazeGenerator, current, Color.red); //  Show current being visited
+            helper.SetCubeColor(mazeGenerator, current, CurrentColor); //  Show current being visited
 
             yield return new WaitForSeconds(stepDelay);
 
@@ -117,7 +117,7 @@ public class PrimsFirstApproach : MonoBehaviour
                 if (visited.Contains(n))
                     visitedNeighbors.Add(n);
                 else
-                    helper.SetCubeColor(mazeGenerator, n, Color.yellow); //  Mark unvisited neighbors
+                    helper.SetCubeColor(mazeGenerator, n, NeighborColor); //  Mark unvisited neighbors
             }
 
             if (visitedNeighbors.Count > 0)
@@ -134,7 +134,7 @@ public class PrimsFirstApproach : MonoBehaviour
 
                 visited.Add(current);
 
-                helper.SetCubeColor(mazeGenerator, current, new Color(0.5f, 0, 0.5f)); //  Purple: final path
+                helper.SetCubeColor(mazeGenerator, current, PathColor); //  Purple: final path
 
                 helper.AddNeighborsToFrontier(current, visited, frontier);
             }
@@ -150,7 +150,7 @@ public class PrimsFirstApproach : MonoBehaviour
                 if (map[x, z] == 1)
                 {
                     Vector2Int pos = new Vector2Int(x, z);
-                    helper.SetCubeColor(mazeGenerator, pos, Color.black);
+                    helper.SetCubeColor(mazeGenerator, pos, WallColor);
                 }
             }
         }

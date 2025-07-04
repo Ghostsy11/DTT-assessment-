@@ -14,23 +14,53 @@ public class MazeRenderCulling : MonoBehaviour
     [Header("Settings")]
     public float viewDistance = 40f;
     public float updateInterval = 0.5f; // seconds
-
-    private void Awake()
-    {
-        if (generator == null)
-            generator = GetComponent<MazeGenerator>();
-    }
+    private Coroutine cullingRoutine; // Track the coroutine so we can stop it
 
     private void Start()
     {
-        StartCoroutine(CullLoop());
+        if (generator == null)
+        {
+
+            generator = FindObjectOfType<MazeGenerator>();
+        }
+        // Only start if enabled
+        if (enabled)
+        {
+
+            cullingRoutine = StartCoroutine(CullLoop());
+        }
+    }
+
+    private void OnEnable()
+    {
+        // Restart coroutine when script is re-enabled
+        if (cullingRoutine == null)
+        {
+
+            cullingRoutine = StartCoroutine(CullLoop());
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Stop culling coroutine when disabled
+        if (cullingRoutine != null)
+        {
+            StopCoroutine(cullingRoutine);
+            cullingRoutine = null;
+        }
     }
 
     private IEnumerator CullLoop()
     {
         while (true)
         {
-            CullCubes();
+            if (enabled)
+            {
+                CullCubes();
+            } // Extra guard in case coroutine is still running while being disabled
+
+
             yield return new WaitForSeconds(updateInterval);
         }
     }
@@ -52,11 +82,17 @@ public class MazeRenderCulling : MonoBehaviour
 
             Renderer rend = cube.GetComponent<Renderer>();
             if (rend != null)
+            {
                 rend.enabled = shouldRender;
+
+            }
 
             Collider col = cube.GetComponent<Collider>();
             if (col != null)
+            {
+
                 col.enabled = shouldRender;
+            }
         }
     }
 }

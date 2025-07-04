@@ -7,13 +7,13 @@ using UnityEngine;
 public class MazeDictMeshRenderer : MonoBehaviour
 {
     [Header("References (set automatically)")]
-    [SerializeField] private MazeGridPoolManager poolManager;
+    [SerializeField] MazeGridPoolManager poolManager;
 
     [Header("Batch Settings")]
     [Tooltip("How many cubes to toggle before waiting")]
-    [SerializeField] private int batchSize = 1000;
+    [SerializeField] int batchSize = 1000;
     [Tooltip("Seconds to wait between each batch")]
-    [SerializeField] private float delayBetweenBatches = 0.05f;
+    [SerializeField] float delayBetweenBatches = 0.05f;
 
     // Keep track so we can stop an in-flight coroutine
     private Coroutine _toggleRoutine;
@@ -47,6 +47,13 @@ public class MazeDictMeshRenderer : MonoBehaviour
     {
         if (_toggleRoutine != null) StopCoroutine(_toggleRoutine);
         _toggleRoutine = StartCoroutine(SetRenderersGradually(true));
+    }
+
+    public IEnumerator RenderCubesGraduallyOnHold()
+    {
+        if (_toggleRoutine != null) StopCoroutine(_toggleRoutine);
+        _toggleRoutine = StartCoroutine(SetRenderersGradually(true));
+        yield return null;
     }
 
     /// <summary>
